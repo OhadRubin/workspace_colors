@@ -51,7 +51,8 @@ def save_variation(output_dir: str, name: str, settings: dict) -> None:
 
 
 def main():
-    output_dir = os.path.dirname(os.path.abspath(__file__))
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    output_dir = os.path.join(script_dir, "color_variations")
 
     # Base colors to generate variations from
     base_colors = {
