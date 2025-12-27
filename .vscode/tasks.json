@@ -1,0 +1,24 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "npm",
+            "script": "compile",
+            "path": "vscode-workspace-colors",
+            "problemMatcher": "$tsc",
+            "label": "npm: compile - vscode-workspace-colors",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "type": "npm",
+            "script": "watch",
+            "path": "vscode-workspace-colors",
+            "problemMatcher": "$tsc-watch",
+            "label": "npm: watch - vscode-workspace-colors",
+            "isBackground": true
+        }
+    ]
+}

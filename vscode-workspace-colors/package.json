@@ -1,0 +1,62 @@
+{
+  "name": "workspace-colors",
+  "displayName": "Workspace Colors",
+  "description": "Pick and apply workspace color themes to distinguish VS Code windows",
+  "version": "0.1.0",
+  "publisher": "workspace-colors",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Themes",
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "workspaceColors.pickTheme",
+        "title": "Pick Workspace Color Theme",
+        "icon": "$(symbol-color)"
+      },
+      {
+        "command": "workspaceColors.clearTheme",
+        "title": "Clear Workspace Color Theme",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "workspaceColors.applyTheme",
+        "title": "Apply Workspace Color Theme"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "workspaceColors",
+          "name": "Workspace Colors"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "workspaceColors.clearTheme",
+          "when": "view == workspaceColors",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.80.0",
+    "typescript": "^5.0.0"
+  }
+}
