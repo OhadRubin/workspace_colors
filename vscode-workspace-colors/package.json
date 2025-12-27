@@ -2,7 +2,7 @@
   "name": "workspace-colors",
   "displayName": "Workspace Colors",
   "description": "Pick and apply workspace color themes to distinguish VS Code windows",
-  "version": "0.13.2",
+  "version": "0.13.3",
   "publisher": "OhadRubin",
   "license": "MIT",
   "repository": {
