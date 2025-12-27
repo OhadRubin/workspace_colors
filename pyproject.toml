@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Color picker for VS Code workspace themes"
 requires-python = ">=3.10"
 dependencies = [
+    "matplotlib>=3.10.8",
     "numpy>=2.2.6",
     "pillow>=12.0.0",
     "textual>=0.40.0",

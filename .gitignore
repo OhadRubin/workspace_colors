@@ -30,4 +30,5 @@ out/
 
 # macOS
 .DS_Store
-
+.gitignore
+data

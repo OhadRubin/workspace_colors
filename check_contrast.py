@@ -1,66 +1,40 @@
 #!/usr/bin/env python3
 """Check contrast of all themes by capturing screenshots."""
 
+import json
 import tempfile
 import time
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
 import numpy as np
+from PIL import Image, ImageDraw, ImageFont
 
 from color_picker.base import load_themes, write_theme
 from capture_top import capture_region
+from scripts.contrast_rows import estimate_bg_and_text, contrast_ratio
 
 BATCH_SIZE = 5
-TABLE_PATH = Path("contrast_table.png")
-SNAPSHOTS_DIR = Path("contrast_snapshots")
-
-
-def get_dominant_color(img: Image.Image) -> tuple[int, int, int]:
-    """Get the most common color (background)."""
-    arr = np.array(img)
-    pixels = arr.reshape(-1, 3)
-    rounded = (pixels // 10) * 10
-    unique, counts = np.unique(rounded, axis=0, return_counts=True)
-    dominant = unique[counts.argmax()]
-    return tuple(dominant)
-
-
-TEXT_COLOR = (255, 255, 255)  # Fixed white text
-
-
-def relative_luminance(r: int, g: int, b: int) -> float:
-    """Calculate relative luminance per WCAG."""
-    def channel(c: int) -> float:
-        c = c / 255
-        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
-    return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)
-
-
-def contrast_ratio(color1: tuple[int, int, int], color2: tuple[int, int, int]) -> float:
-    """Calculate WCAG contrast ratio between two colors."""
-    l1 = relative_luminance(*color1)
-    l2 = relative_luminance(*color2)
-    lighter = max(l1, l2)
-    darker = min(l1, l2)
-    return (lighter + 0.05) / (darker + 0.05)
+DATA_DIR = Path(__file__).parent / "data"
+TABLE_PATH = DATA_DIR / "contrast_table.png"
+SNAPSHOTS_DIR = DATA_DIR / "contrast_snapshots"
+CLASSIFICATIONS_PATH = DATA_DIR / "classifications.json"
 
 
 def get_status(ratio: float) -> str:
     """Get status label for contrast ratio."""
-    if ratio >= 4.5:
-        return "OK"
-    elif ratio >= 3:
-        return "LOW"
+    if ratio >= 2.0:
+        return "GOOD"
+    elif ratio >= 1.5:
+        return "MID"
     else:
         return "BAD"
 
 
 def get_status_color(status: str) -> tuple[int, int, int]:
     """Get color for status label."""
-    if status == "OK":
+    if status == "GOOD":
         return (0, 150, 0)
-    elif status == "LOW":
+    elif status == "MID":
         return (200, 150, 0)
     else:
         return (200, 0, 0)
@@ -105,7 +79,7 @@ def build_table_image(results: list[dict], images: list[Image.Image]) -> Image.I
     return table
 
 
-def check_all_themes(workspace: Path, delay: float = 0.5) -> list[dict]:
+def check_all_themes(workspace: Path, delay: float = 0.2) -> list[dict]:
     """Check contrast for all themes."""
     themes = load_themes()
     results = []
@@ -139,38 +113,45 @@ def check_all_themes(workspace: Path, delay: float = 0.5) -> list[dict]:
                 img = Image.open(capture_path).copy()
                 images.append(img)
 
-                # Analyze
-                try:
-                    bg = get_dominant_color(img)
-                    ratio = contrast_ratio(bg, TEXT_COLOR)
-                except Exception:
-                    ratio = -1
-                    bg = (0, 0, 0)
+                # Save raw screenshot (no labels)
+                colors_dir = SNAPSHOTS_DIR / "colors"
+                colors_dir.mkdir(parents=True, exist_ok=True)
+                img.save(colors_dir / f"{name}.png")
 
+                # Extract bg/text colors from the captured bar (preserve alpha if present)
+                img_arr = np.array(img, dtype=np.uint8)
+                bg, text = estimate_bg_and_text(img_arr)
+                ratio = contrast_ratio(bg, text)
+
+                status = get_status(ratio)
                 result = {
                     "category": category,
                     "name": name,
                     "hex": hex_color,
-                    "contrast": ratio,
-                    "bg_rgb": bg,
+                    "contrast": float(ratio),
+                    "status": status,
+                    "bg_rgb": [int(x) for x in bg],
+                    "text_rgb": [int(x) for x in text],
                 }
                 results.append(result)
 
-                status = get_status(ratio)
                 print(f"[{count}/{total}] {status:4} {ratio:5.2f} {name:20} {hex_color}")
 
-                # Update table every BATCH_SIZE
+                # Update every BATCH_SIZE
                 if count % BATCH_SIZE == 0 or count == total:
-                    # Both tables: only last 5
+                    # Save classifications
+                    with open(CLASSIFICATIONS_PATH, "w") as f:
+                        json.dump(results, f, indent=2)
+                    # Save progress table
                     last_5_results = results[-BATCH_SIZE:]
                     last_5_images = images[-BATCH_SIZE:]
                     table = build_table_image(last_5_results, last_5_images)
                     table.save(TABLE_PATH)
-                    # Intermediate snapshot
-                    SNAPSHOTS_DIR.mkdir(exist_ok=True)
-                    intermediate_path = SNAPSHOTS_DIR / f"table_{count:03d}.png"
-                    table.save(intermediate_path)
-                    print(f"  -> Updated {TABLE_PATH} + {intermediate_path}")
+                    # Save batch table
+                    tables_dir = SNAPSHOTS_DIR / "tables"
+                    tables_dir.mkdir(parents=True, exist_ok=True)
+                    table.save(tables_dir / f"table_{count:03d}.png")
+                    print(f"  -> Updated {TABLE_PATH}")
 
     return results
 
@@ -183,22 +164,18 @@ if __name__ == "__main__":
 
     # Summary
     print("\n--- SUMMARY ---")
-    bad = [r for r in results if r["contrast"] < 3]
-    low = [r for r in results if 3 <= r["contrast"] < 4.5]
-    ok = [r for r in results if r["contrast"] >= 4.5]
+    bad = [r for r in results if r["status"] == "BAD"]
+    mid = [r for r in results if r["status"] == "MID"]
+    good = [r for r in results if r["status"] == "GOOD"]
 
-    print(f"\nOK:  {len(ok)} themes")
-    print(f"LOW: {len(low)} themes")
-    print(f"BAD: {len(bad)} themes")
+    print(f"\nGOOD (>=2.0): {len(good)} themes")
+    print(f"MID (1.5-2.0): {len(mid)} themes")
+    print(f"BAD (<1.5): {len(bad)} themes")
 
     if bad:
-        print(f"\nBAD contrast (<3:1):")
+        print(f"\nBAD contrast (<1.5):")
         for r in sorted(bad, key=lambda x: x["contrast"]):
             print(f"  {r['contrast']:5.2f} {r['name']} ({r['hex']})")
 
-    if low:
-        print(f"\nLOW contrast (3-4.5:1):")
-        for r in sorted(low, key=lambda x: x["contrast"]):
-            print(f"  {r['contrast']:5.2f} {r['name']} ({r['hex']})")
-
-    print(f"\nFinal table saved to {TABLE_PATH}")
+    print(f"\nSaved to {CLASSIFICATIONS_PATH}")
+    print(f"Final table saved to {TABLE_PATH}")
