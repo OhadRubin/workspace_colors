@@ -2,7 +2,7 @@
 
 Easily distinguish between VS Code windows by applying custom color themes to the title bar, activity bar, and status bar.
 
-![Workspace Colors Screenshot](https://raw.githubusercontent.com/OhadRubin/workspace_colors/master/vscode-workspace-colors/screenshot.png)
+![Workspace Colors Screenshot](https://raw.githubusercontent.com/OhadRubin/workspace_colors/master/assets/window_view.png)
 
 ## Features
 
@@ -34,6 +34,10 @@ Search for "Workspace Colors" in the Extensions view.
 
 ### Open VSX
 Available at [open-vsx.org/extension/OhadRubin/workspace-colors](https://open-vsx.org/extension/OhadRubin/workspace-colors)
+
+## Contributing
+
+Contributions are welcome! Feel free to open issues or submit pull requests on [GitHub](https://github.com/OhadRubin/workspace_colors).
 
 ## License
 
