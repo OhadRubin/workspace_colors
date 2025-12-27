@@ -2,7 +2,7 @@
 
 Easily distinguish between VS Code windows by applying custom color themes to the title bar, activity bar, and status bar.
 
-![Workspace Colors Screenshot](screenshot.png)
+![Workspace Colors Screenshot](https://raw.githubusercontent.com/OhadRubin/workspace_colors/master/vscode-workspace-colors/screenshot.png)
 
 ## Features
 
