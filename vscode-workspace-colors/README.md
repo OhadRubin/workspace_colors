@@ -10,7 +10,6 @@ Easily distinguish between VS Code windows by applying custom color themes to th
 ![Demo Part 2](https://raw.githubusercontent.com/OhadRubin/workspace_colors/master/assets/part_2.gif)
 ![Demo Part 3](https://raw.githubusercontent.com/OhadRubin/workspace_colors/master/assets/part_3.gif)
 ![Demo Part 4](https://raw.githubusercontent.com/OhadRubin/workspace_colors/master/assets/part_4.gif)
-![Demo Part 5](https://raw.githubusercontent.com/OhadRubin/workspace_colors/master/assets/part_5.gif)
 
 ## Features
 
