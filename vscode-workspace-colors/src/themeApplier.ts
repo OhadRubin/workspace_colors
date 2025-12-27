@@ -12,10 +12,16 @@ export async function applyTheme(colorCustomizations: Record<string, string>): P
   // Remove our managed keys first, then add new ones
   const managedKeys = [
     'titleBar.activeBackground',
+    'titleBar.activeForeground',
     'titleBar.inactiveBackground',
+    'titleBar.inactiveForeground',
     'titleBar.border',
     'statusBar.background',
+    'statusBar.foreground',
     'statusBar.debuggingBackground',
+    'statusBar.debuggingForeground',
+    'activityBar.background',
+    'activityBar.foreground',
     'tab.activeBorder',
   ];
 
@@ -44,10 +50,16 @@ export async function clearTheme(): Promise<void> {
 
   const managedKeys = [
     'titleBar.activeBackground',
+    'titleBar.activeForeground',
     'titleBar.inactiveBackground',
+    'titleBar.inactiveForeground',
     'titleBar.border',
     'statusBar.background',
+    'statusBar.foreground',
     'statusBar.debuggingBackground',
+    'statusBar.debuggingForeground',
+    'activityBar.background',
+    'activityBar.foreground',
     'tab.activeBorder',
   ];
 

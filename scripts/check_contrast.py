@@ -10,11 +10,11 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 from color_picker.base import load_themes, write_theme
-from capture_top import capture_region
-from scripts.contrast_rows import estimate_bg_and_text, contrast_ratio
+from .capture_top import capture_region
+from .contrast_rows import estimate_bg_and_text, contrast_ratio
 
 BATCH_SIZE = 5
-DATA_DIR = Path(__file__).parent / "data"
+DATA_DIR = Path(__file__).parent.parent / "data"
 TABLE_PATH = DATA_DIR / "contrast_table.png"
 SNAPSHOTS_DIR = DATA_DIR / "contrast_snapshots"
 CLASSIFICATIONS_PATH = DATA_DIR / "classifications.json"

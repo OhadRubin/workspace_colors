@@ -1,12 +1,53 @@
 /**
- * Color utility functions for HSL/Hex conversion.
- * Ported from generate.py
+ * Color utility functions for HSL/Hex conversion and contrast calculations.
+ * Ported from color_picker/base.py
  */
 
 export interface HSL {
   h: number; // 0-360
   s: number; // 0-100
   l: number; // 0-100
+}
+
+/**
+ * Convert sRGB component to linear RGB.
+ */
+function srgbToLinear(u: number): number {
+  return u <= 0.03928 ? u / 12.92 : Math.pow((u + 0.055) / 1.055, 2.4);
+}
+
+/**
+ * Calculate relative luminance per WCAG 2.1.
+ */
+export function relativeLuminance(hexColor: string): number {
+  const hex = hexColor.replace('#', '');
+  const r = parseInt(hex.substring(0, 2), 16) / 255;
+  const g = parseInt(hex.substring(2, 4), 16) / 255;
+  const b = parseInt(hex.substring(4, 6), 16) / 255;
+  const rLin = srgbToLinear(r);
+  const gLin = srgbToLinear(g);
+  const bLin = srgbToLinear(b);
+  return 0.2126 * rLin + 0.7152 * gLin + 0.0722 * bLin;
+}
+
+/**
+ * Calculate WCAG contrast ratio between two hex colors.
+ */
+export function contrastRatio(color1: string, color2: string): number {
+  const l1 = relativeLuminance(color1);
+  const l2 = relativeLuminance(color2);
+  const lighter = Math.max(l1, l2);
+  const darker = Math.min(l1, l2);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+/**
+ * Choose black or white foreground based on background luminance.
+ */
+export function chooseForeground(bgHex: string): string {
+  const lum = relativeLuminance(bgHex);
+  // Dark bg (lum < 0.4) -> white text, Light bg -> black text
+  return lum < 0.4 ? '#ffffff' : '#000000';
 }
 
 /**
@@ -90,25 +131,52 @@ export function hslToHex(h: number, s: number, l: number): string {
 
 /**
  * Generate a brighter version of the given color.
- * Ported from generate.py lines 23-27
+ * Uses adaptive lightness boost: more for dark colors, less for light colors.
+ * Caps at 75% lightness to maintain visibility against text.
  */
-export function generateBrightVersion(hexColor: string, lightnessBoost: number = 25): string {
+export function generateBrightVersion(hexColor: string, lightnessBoost?: number): string {
   const { h, s, l } = hexToHsl(hexColor);
-  const newL = Math.min(100, l + lightnessBoost);
+
+  if (lightnessBoost === undefined) {
+    // Adaptive: dark colors get more boost, light colors less
+    // Range roughly: 35 for l=0, 15 for l=60
+    lightnessBoost = Math.max(15, 35 - l * 0.33);
+  }
+
+  // Cap at 75% to avoid washing out (keeps contrast with text)
+  const newL = Math.min(75, l + lightnessBoost);
   return hslToHex(h, s, newL);
 }
 
 /**
- * Generate VS Code color customizations for a theme.
- * Ported from generate.py lines 30-41
+ * Generate VS Code color customizations for a theme with proper foreground colors.
  */
 export function generateColorCustomizations(baseColor: string, brightColor: string): Record<string, string> {
+  // Choose foreground colors based on background luminance
+  const baseFg = chooseForeground(baseColor);
+  const brightFg = chooseForeground(brightColor);
+
+  // Generate a darker version for activity bar (more muted)
+  const { h, s, l } = hexToHsl(baseColor);
+  const activityBarBg = hslToHex(h, s, Math.max(10, l - 10));
+  const activityBarFg = chooseForeground(activityBarBg);
+
   return {
+    // Title bar
     'titleBar.activeBackground': baseColor,
+    'titleBar.activeForeground': baseFg,
     'titleBar.inactiveBackground': brightColor,
+    'titleBar.inactiveForeground': brightFg,
     'titleBar.border': brightColor,
+    // Status bar
     'statusBar.background': brightColor,
+    'statusBar.foreground': brightFg,
     'statusBar.debuggingBackground': brightColor,
+    'statusBar.debuggingForeground': brightFg,
+    // Activity bar
+    'activityBar.background': activityBarBg,
+    'activityBar.foreground': activityBarFg,
+    // Tabs
     'tab.activeBorder': brightColor,
   };
 }
