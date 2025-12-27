@@ -4,6 +4,9 @@ set -e
 # Build and publish VS Code extension
 cd "$(dirname "$0")"
 
+# Copy README from root
+cp ../README.md .
+
 # Compile TypeScript
 npm run compile
 
