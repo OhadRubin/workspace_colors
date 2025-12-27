@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-Textual app to pick VSCode color themes from color_variations/ and apply them.
+Textual app to pick VSCode color themes and apply them.
+Uses colors from vscode-workspace-colors/src/colors.json.
 """
 
+import colorsys
 import json
-import json5
 from pathlib import Path
 
 from textual.app import App, ComposeResult
@@ -14,18 +15,51 @@ from textual.reactive import reactive
 from rich.text import Text
 
 
+def hex_to_hsl(hex_color: str) -> tuple[float, float, float]:
+    """Convert hex color to HSL (hue 0-360, sat 0-100, light 0-100)."""
+    hex_color = hex_color.lstrip('#')
+    r, g, b = tuple(int(hex_color[i:i+2], 16) / 255 for i in (0, 2, 4))
+    h, l, s = colorsys.rgb_to_hls(r, g, b)
+    return h * 360, s * 100, l * 100
+
+
+def hsl_to_hex(h: float, s: float, l: float) -> str:
+    """Convert HSL (hue 0-360, sat 0-100, light 0-100) to hex color."""
+    r, g, b = colorsys.hls_to_rgb(h / 360, l / 100, s / 100)
+    return f"#{int(r*255):02x}{int(g*255):02x}{int(b*255):02x}"
+
+
+def generate_bright_version(hex_color: str, lightness_boost: float = 25) -> str:
+    """Generate a brighter version of the given color."""
+    h, s, l = hex_to_hsl(hex_color)
+    new_l = min(100, l + lightness_boost)
+    return hsl_to_hex(h, s, new_l)
+
+
+def generate_color_customizations(base_color: str, bright_color: str) -> dict:
+    """Generate VS Code settings dict."""
+    return {
+        "workbench.colorCustomizations": {
+            "titleBar.activeBackground": base_color,
+            "titleBar.inactiveBackground": bright_color,
+            "titleBar.border": bright_color,
+            "statusBar.background": bright_color,
+            "statusBar.debuggingBackground": bright_color,
+            "tab.activeBorder": bright_color,
+        }
+    }
+
+
 class ColorThemeItem(ListItem):
     """A list item representing a color theme."""
 
-    def __init__(self, theme_name: str, theme_path: Path, theme_colors: dict) -> None:
+    def __init__(self, theme_name: str, base_color: str) -> None:
         super().__init__()
         self.theme_name = theme_name
-        self.theme_path = theme_path
-        self.theme_colors = theme_colors
-        # Extract primary colors for preview
-        customizations = theme_colors.get("workbench.colorCustomizations", {})
-        self.active_bg = customizations.get("titleBar.activeBackground", "#333333")
-        self.inactive_bg = customizations.get("titleBar.inactiveBackground", "#555555")
+        self.base_color = base_color
+        self.bright_color = generate_bright_version(base_color)
+        self.active_bg = base_color
+        self.inactive_bg = self.bright_color
 
     def compose(self) -> ComposeResult:
         with Horizontal(classes="theme-row"):
@@ -48,10 +82,12 @@ class ColorPreview(Static):
 
     def __init__(self) -> None:
         super().__init__()
-        self.current_colors: dict = {}
+        self.current_base_color: str = ""
 
-    def update_preview(self, theme_name: str, colors: dict) -> None:
-        self.current_colors = colors
+    def update_preview(self, theme_name: str, base_color: str) -> None:
+        self.current_base_color = base_color
+        bright_color = generate_bright_version(base_color)
+        colors = generate_color_customizations(base_color, bright_color)
         customizations = colors.get("workbench.colorCustomizations", {})
 
         lines = [f"[bold]{theme_name.upper()}[/bold]\n"]
@@ -124,30 +160,25 @@ class ColorPickerApp(App):
         super().__init__()
         self.base_path = Path(__file__).parent
         self.vscode_settings_path = self.base_path / ".vscode" / "settings.json"
-        self.themes: dict[str, tuple[Path, dict]] = {}
+        self.colors_by_category: dict[str, dict[str, str]] = {}
         self._load_themes()
 
     def _load_themes(self) -> None:
-        """Load all color themes from color_variations/."""
-        variations_path = self.base_path / "color_variations"
-        if not variations_path.exists():
-            raise FileNotFoundError(f"color_variations directory not found at {variations_path}")
+        """Load all color themes from vscode-workspace-colors/src/colors.json."""
+        colors_path = self.base_path / "vscode-workspace-colors" / "src" / "colors.json"
+        if not colors_path.exists():
+            raise FileNotFoundError(f"colors.json not found at {colors_path}")
 
-        for theme_dir in sorted(variations_path.iterdir()):
-            if not theme_dir.is_dir():
-                continue
-            settings_file = theme_dir / "settings.json"
-            if settings_file.exists():
-                with open(settings_file) as f:
-                    colors = json5.load(f)
-                self.themes[theme_dir.name] = (settings_file, colors)
+        with open(colors_path) as f:
+            self.colors_by_category = json.load(f)
 
     def compose(self) -> ComposeResult:
         yield Header()
         with Horizontal():
             with ListView(id="theme-list"):
-                for theme_name, (theme_path, colors) in self.themes.items():
-                    yield ColorThemeItem(theme_name, theme_path, colors)
+                for category, colors in self.colors_by_category.items():
+                    for theme_name, base_color in colors.items():
+                        yield ColorThemeItem(theme_name, base_color)
             with Vertical(id="preview-panel"):
                 yield ColorPreview()
                 yield Static("", id="status")
@@ -157,22 +188,21 @@ class ColorPickerApp(App):
         """Focus the list and show first theme preview."""
         list_view = self.query_one("#theme-list", ListView)
         list_view.focus()
-        if self.themes:
-            first_theme = next(iter(self.themes.keys()))
-            _, colors = self.themes[first_theme]
-            self.query_one(ColorPreview).update_preview(first_theme, colors)
-            self._update_status(f"Use ↑↓ to browse, Enter to apply")
+        if self.colors_by_category:
+            first_category = next(iter(self.colors_by_category.values()))
+            first_name, first_color = next(iter(first_category.items()))
+            self.query_one(ColorPreview).update_preview(first_name, first_color)
+            self._update_status("Use ↑↓ to browse, Enter to apply")
 
     def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
         """Update preview and apply theme live when navigating."""
         if event.item is None:
             return
         if isinstance(event.item, ColorThemeItem):
-            theme_name = event.item.theme_name
-            _, colors = self.themes[theme_name]
-            self.query_one(ColorPreview).update_preview(theme_name, colors)
+            item = event.item
+            self.query_one(ColorPreview).update_preview(item.theme_name, item.base_color)
             # Apply immediately as user navigates
-            self._write_theme(theme_name, colors)
+            self._write_theme(item.base_color)
 
     def action_apply_theme(self) -> None:
         """Apply the currently selected theme to .vscode/settings.json."""
@@ -185,13 +215,13 @@ class ColorPickerApp(App):
         if not isinstance(item, ColorThemeItem):
             raise TypeError(f"Expected ColorThemeItem, got {type(item)}")
 
-        theme_name = item.theme_name
-        _, colors = self.themes[theme_name]
-        self._write_theme(theme_name, colors)
-        self._update_status(f"[green]Applied {theme_name.upper()} theme![/green]")
+        self._write_theme(item.base_color)
+        self._update_status(f"[green]Applied {item.theme_name.upper()} theme![/green]")
 
-    def _write_theme(self, theme_name: str, colors: dict) -> None:
+    def _write_theme(self, base_color: str) -> None:
         """Write theme to .vscode/settings.json."""
+        bright_color = generate_bright_version(base_color)
+        colors = generate_color_customizations(base_color, bright_color)
         self.vscode_settings_path.parent.mkdir(parents=True, exist_ok=True)
         with open(self.vscode_settings_path, "w") as f:
             json.dump(colors, f, indent=4)
