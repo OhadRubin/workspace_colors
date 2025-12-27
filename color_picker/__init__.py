@@ -2,3 +2,4 @@
 
 from .base import *
 from .tui import *
+from .cli import main

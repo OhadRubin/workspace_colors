@@ -45,10 +45,17 @@ def generate_color_customizations(base_color: str, bright_color: str) -> dict:
 
 
 def get_colors_json_path(base_path: Path | None = None) -> Path:
-    """Get path to colors.json. Uses package parent dir if base_path not provided."""
-    if base_path is None:
-        base_path = Path(__file__).parent.parent
-    return base_path / "vscode-workspace-colors" / "src" / "colors.json"
+    """Get path to colors.json. Checks package dir first, then repo layout."""
+    if base_path is not None:
+        return base_path / "vscode-workspace-colors" / "src" / "colors.json"
+
+    # Check package-bundled colors.json first
+    pkg_colors = Path(__file__).parent / "colors.json"
+    if pkg_colors.exists():
+        return pkg_colors
+
+    # Fall back to repo layout
+    return Path(__file__).parent.parent / "vscode-workspace-colors" / "src" / "colors.json"
 
 
 def load_themes(base_path: Path | None = None) -> dict[str, dict[str, str]]:

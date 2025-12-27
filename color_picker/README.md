@@ -2,31 +2,39 @@
 
 Python tools for applying VS Code workspace color themes.
 
-## Usage
-
-### TUI (interactive)
+## Installation
 
 ```bash
-python color_picker.py
+uv tool install .
 ```
 
-Use arrow keys to browse, Enter to apply.
+This installs `colorpick` globally.
+
+## Usage
 
 ### CLI
 
 ```bash
 # List all themes
-python -m color_picker list
+colorpick list
 
 # Apply by theme name
-python -m color_picker apply -t forest
+colorpick apply -t forest
 
 # Apply hex color directly
-python -m color_picker apply -c "#ff5500"
+colorpick apply -c "#ff5500"
 
 # Apply to specific workspace
-python -m color_picker apply -t sage -w /path/to/workspace
+colorpick apply -t sage -w /path/to/workspace
 ```
+
+### TUI (interactive)
+
+```bash
+uv run python color_picker.py
+```
+
+Use arrow keys to browse, Enter to apply.
 
 ## Structure
 
